@@ -1,7 +1,7 @@
 dash
 dash-bootstrap-components
 pandas
-yfinance
+yfinance==0.2.63
 numpy
 plotly
 scipy
