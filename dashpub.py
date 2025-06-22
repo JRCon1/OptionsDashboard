@@ -13,6 +13,13 @@ from datetime import datetime
 import plotly.graph_objects as go  # Add this import at the top with other imports
 import io
 
+try:
+    from curl_cffi import requests as c_requests
+    YF_SESSION = c_requests.Session(impersonate="chrome")
+except ImportError:
+    import requests
+    YF_SESSION = requests.Session()   # fallback
+
 # Define common styles
 COMMON_STYLES = {
     'container': {
@@ -373,7 +380,7 @@ def monte_carlo_price_calc(S, K, T, sigma, opt_type='c', r=0.05, n=10000, q=0):
 # Data Download and Calculation Functions
 # ---------------------------
 def download_options(ticker_symbol, opt_type='c', max_days=60, lower_moneyness=0.95, upper_moneyness=1.05):
-    ticker = yf.Ticker(ticker_symbol)
+    ticker = yf.Ticker(ticker_symbol, session=YF_SESSION)
     underlying_price = ticker.history(period="1d")['Close'].iloc[-1]
     lower_strike, upper_strike = underlying_price * lower_moneyness, underlying_price * upper_moneyness
     relevant_columns = ['strike', 'inTheMoney', 'lastPrice', 'bid', 'ask', 'volume', 'openInterest', 'impliedVolatility']
@@ -841,7 +848,9 @@ def get_options_dashboard():
 def update_current_price(ticker):
     if ticker:
         try:
-            price = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
+            # Pass it into yfinance
+            ticker_obj = yf.Ticker(ticker, session=YF_SESSION)
+            price = ticker_obj.history(period="1d")['Close'].iloc[-1]
             return f"${price:,.2f}"
         except Exception as e:
             return "N/A"
@@ -1074,7 +1083,7 @@ def update_options(ticker, opt_type, max_days, moneyness):
     if df.empty:
         return []
     
-    S = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
+    S = yf.Ticker(ticker, session=YF_SESSION).history(period="1d")['Close'].iloc[-1]
     df['Delta'] = df.apply(lambda row: delta(row, S, option_type=opt_type), axis=1)
     df['Theta'] = df.apply(lambda row: theta(row, S, option_type=opt_type), axis=1)
     df['Vega'] = df.apply(lambda row: vega(row, S), axis=1)
@@ -1105,7 +1114,7 @@ def update_scatter_3d(ticker, opt_type, max_days, moneyness, greek_choice):
     if df.empty:
         return px.scatter_3d(title="No Data Available")
     
-    S = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
+    S = yf.Ticker(ticker, session=YF_SESSION).history(period="1d")['Close'].iloc[-1]
     df['Delta'] = df.apply(lambda row: delta(row, S, option_type=opt_type), axis=1)
     df['Theta'] = df.apply(lambda row: theta(row, S, option_type=opt_type), axis=1)
     df['Vega'] = df.apply(lambda row: vega(row, S), axis=1)
@@ -1519,7 +1528,7 @@ def update_ic_expiry(ticker):
     if not ticker:
         return []
     try:
-        ticker_obj = yf.Ticker(ticker)
+        ticker_obj = yf.Ticker(ticker, session=YF_SESSION)
         expiry_dates = ticker_obj.options
         return [{'label': date, 'value': date} for date in expiry_dates]
     except:
@@ -1537,7 +1546,7 @@ def update_ic_strikes(ticker, expiry):
     if not ticker or not expiry:
         return [], [], [], []
     try:
-        ticker_obj = yf.Ticker(ticker)
+        ticker_obj = yf.Ticker(ticker, session=YF_SESSION)
         current_price = ticker_obj.history(period="1d")['Close'].iloc[-1]
         option_chain = ticker_obj.option_chain(expiry)
         
@@ -1572,7 +1581,7 @@ def update_ic_analysis(ticker, expiry, short_call, long_call, short_put, long_pu
         return "Please select all strikes to analyze the strategy.", go.Figure()
     
     try:
-        ticker_obj = yf.Ticker(ticker)
+        ticker_obj = yf.Ticker(ticker, session=YF_SESSION)
         current_price = ticker_obj.history(period="1d")['Close'].iloc[-1]
         option_chain = ticker_obj.option_chain(expiry)
         

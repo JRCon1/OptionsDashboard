@@ -7,4 +7,5 @@ plotly
 scipy
 gunicorn
 openpyxl
-XlsxWriter 
+XlsxWriter
+curl_cffi>=0.11 
